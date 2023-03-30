@@ -4,23 +4,26 @@ from urllib import parse
 
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import selenium.webdriver.chrome.options as options
 
+CHROMEDRIVER_PATH = 'C:\\Windows\\system32\\'
 DOCUMENT = 'https://docs.python.org/'
-
+DOWNLOAD = 'D:\\Downloads\\'
 
 def get_selenium_url(url):
-    options = Options()
+    options = webdriver.ChromeOptions()
     options.add_argument('headless')
-    driver = webdriver.Chrome(options=options)
-    driver.get(url=url)
-    time.sleep(1)
-    text = driver.page_source
-    driver.quit()
-    return text
+    try:
+        driver = webdriver.Chrome(options=options)
+        driver.get(url=url)
+        text = driver.page_source
+        return text
+    except Exception as e:
+        print(e)
 
 
-def parsing_youtube(url):
+
+def parsing_youtube(download, url):
     html = get_selenium_url(url)
     soup = bs(html, 'html.parser')
     name_video = soup.text.split('YouTube')[0]
@@ -37,18 +40,23 @@ def parsing_youtube(url):
         for u_l in u_list:
             if u_l[:9] == '%3A%2F%2F':
                 list_url.append("https" + parse.unquote(u_l))
-    first, second = list_url
-
+    n =0
     with open(name_video + ".txt", 'w', encoding='utf-8') as f:
-        f.writelines(first + '\n')
-        f.writelines(second + '\n')
-        f.writelines('\n')
-        for line in text.split('\n'):
-            f.write(line + '\n')
-            print('Записан файл ')
+        try:
+            while n < len(list_url):
+                f.writelines(list_url[n] + '\n')
+            f.writelines('\n')
+        except Exception as e:
+            print(e)
+        try:
+            for line in text.split('\n'):
+                f.write(line + '\n')
+                print('Записан файл ')
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':
     # play_smth = input("Введите плейлист, видео или канал:\n")
     url_smth = 'https://www.youtube.com/watch?v=V1_8dbZFmm0&list=PLrzHY9riBq3bu8xnTqukuj_6JpWD8LFB5&index=16'
-    parsing_youtube(url_smth)
+    parsing_youtube(DOWNLOAD, url_smth)

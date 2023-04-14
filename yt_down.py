@@ -71,27 +71,27 @@ def download_video(vidos, number, res, lan):
                         os.remove(download_dir + name_video)
                     if os.path.exists(download_dir + name_audio):
                         os.remove(download_dir + name_audio)
-        elif number == 3:
+        elif number == "3":
             try:
                 audio_file = yt.streams.get_audio_only()
                 print("Качается такой поток аудио", audio_file)
                 audio_file.download(output_path=download_dir, filename=name_audio)
             except Exception as e:
                 print(f'Аудио {yt.title}', e)
-        elif number == 2 or number == 4 or number == 5:
+        elif number == "2" or number == "4" or number == "5":
             try:
                 stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
                 print("Загрузка видео ", name_video)
                 stream.download(download_dir, name_video)
-                if number == 4 or number == 5:
+                if number == "4" or number == "5":
                     audio_clip = yt.streams.get_audio_only()
                     print("Загрузка аудио ", name_audio)
                     audio_clip.download(output_path=download_dir, filename=name_audio)
-                if number == 5:
+                if number == "5":
                     download_subtitle(download_dir, yt, name_video[:-4], lan)
             except Exception as e:
                 print(f'Видео {yt.title} не загружено', e)
-        elif number == 6:
+        elif number == "6":
             download_subtitle(download_dir, yt, name_video[:-4], lan)
 
 

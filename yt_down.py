@@ -15,7 +15,7 @@ from youtube_transcript_api.formatters import SRTFormatter
 
 
 DOWNLOAD = 'D:\\Downloads'
-resolution = ["4320", "2160", "1440", "1080", "720"]
+resolution = ["4320", "2160", "1440", "1080", "720", "480", "360"]
 interval_secs = 5
 
 
@@ -36,6 +36,8 @@ def find_res(vid, res, num):
                 list_res.append(video_streams.filter(type='video', res=resolution[2] + "p").__len__())
                 list_res.append(video_streams.filter(type='video', res=resolution[3] + "p").__len__())
                 list_res.append(video_streams.filter(type='video', res=resolution[4] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=resolution[5] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=resolution[6] + "p").__len__())
                 for n, lis in enumerate(list_res):
                     if lis > 0 and n > number:
                         stream = video_streams.filter(type='video', res=resolution[n] + "p")
@@ -310,7 +312,7 @@ def download_subtitle(down_dir, video, name_video, lan):
 def input_all() -> tuple:
     resolut = '720'
     langus = ''
-    type_id = input("Input type download: 1-8K,4K video, 2-video, 3-audio, 4-video+audio, 5-all, 6-subtitle\n")
+    type_id = input("Input type download: 1-8K,4K,FHD, 2-video(HD), 3-audio, 4-video+audio, 5-all, 6-subtitle\n")
     if type_id == "1":
         resolut = input("Input type of resolution: {4320} {2160} {1440} {1080} {720}\n")
         langus = "en"
@@ -322,10 +324,10 @@ def input_all() -> tuple:
     elif type_id == "2" or type_id == '3' or type_id == '4':
         langus = 'en'
     elif type_id == "6":
-        langus = input("Input lanquages subtitle ('ru', 'en')\n")
+        langus = input("Input lanquages subtitle ('ru', 'en')\n").lower()
     else:
         return None
-    return type_id, resolut, langus.lower()
+    return type_id, resolut, langus
 
 
 if __name__ == '__main__':

@@ -9,19 +9,20 @@ from selenium.webdriver.firefox.options import Options
 import ffmpeg
 from _datetime import datetime
 import pytube
-from pytube import Channel
 from youtube_transcript_api import YouTubeTranscriptApi as Trans
 from youtube_transcript_api.formatters import SRTFormatter
 
 
 DOWNLOAD = 'D:\\Downloads'
-resolution = ["4320", "2160", "1440", "1080", "720", "480", "360"]
-interval_secs = 5
+RESOLUTION = ["4320", "2160", "1440", "1080", "720", "480", "360"]
+INTERVALS_SHORT = 1
+INTERVALS_LONG = 3
+INPUT_STR = 'Input type download: 1-video (8K,4K,FHD), 2-video(HD), 3-audio, 4-video+audio, 5-all, 6-subtitle'
 
 
 def find_res(vid, res, num):
     """Нахождение нужного разрешения видео или самого большого"""
-    number = resolution.index(res)
+    number = RESOLUTION.index(res)
     video_streams = vid.streams
     stream = video_streams.filter(type='video', res=res + "p")
     if num == 1 and stream is not None:
@@ -29,18 +30,18 @@ def find_res(vid, res, num):
     else:
         list_res = []
         try:
-            if len(stream) == 0:
+            if stream is None:
                 print(f"Нет видео <<{vid.title}>> с разрешением {resol}p")
-                list_res.append(video_streams.filter(type='video', res=resolution[0] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[1] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[2] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[3] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[4] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[5] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=resolution[6] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[0] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[1] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[2] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[3] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[4] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[5] + "p").__len__())
+                list_res.append(video_streams.filter(type='video', res=RESOLUTION[6] + "p").__len__())
                 for n, lis in enumerate(list_res):
                     if lis > 0 and n > number:
-                        stream = video_streams.filter(type='video', res=resolution[n] + "p")
+                        stream = video_streams.filter(type='video', res=RESOLUTION[n] + "p")
                         if stream.__len__():
                             return stream.first()
                         else:
@@ -52,9 +53,10 @@ def find_res(vid, res, num):
             return None
 
 
-def change_name(name):
+def change_name(name) -> str:
     new_name = re.sub(r'[^-a-zA-Z0-9а-яА-Я., ]', '', name).replace(' ', '_')
     return new_name
+
 
 def download_video(vidos, number, res, lan):
     """Загрузка видео, аудио, субтитров или все вместе"""
@@ -70,7 +72,7 @@ def download_video(vidos, number, res, lan):
     down_video = download_dir + name_video
     down_audio = download_dir + name_audio
     if number == "1":
-        stream_video = find_res(yt, res)
+        stream_video = find_res(yt, res, number)
         if stream_video is None:
             sys.exit()
         if not os.path.exists(download_dir + name_video):
@@ -116,6 +118,7 @@ def download_video(vidos, number, res, lan):
 def download_channel(play_channel, mode, res, lan):
     """Загрузка всего канала с плейлистами или без"""
     videos = []
+    available_video = []
     options = Options()
     options.add_argument("--headless")
     driver = webdriver.Firefox(options=options)
@@ -142,30 +145,51 @@ def download_channel(play_channel, mode, res, lan):
         print("Не удалось получить список видео")
         exit()
     download_dir = DOWNLOAD + '\\' + channel_name
+
     if not os.path.exists(download_dir):
         os.mkdir(download_dir)
         print(f'Папка {download_dir} была создана:')
-
-    for video in videos:
-        yt = pytube.YouTube(video)
-        hd_name = change_name(yt.title)
-        hd = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-
-        print(video)
-
     driver.quit()
+    available_video = check_playlist(videos)
+
+    for item, video in enumerate(available_video):
+        try:
+            yt_streams = video.streams
+            hd_name = change_name(video.title) + '.mp4'
+            audio_name = hd_name.replace('.mp4', '.mp3')
+        except Exception as e:
+            print(f'Загрузка <<{video.title}>> невозможна, пропускаем.', e)
+            continue
+        if mode == '1':
+            print('Ищем крупные видео-форматы')
+        elif mode == '2' or mode == "4" or mode == "5":
+            hd = yt_streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+            if item < 10:
+                new_item = '0' + str(item+1)
+            else:
+                new_item = item+1
+            if not os.path.exists(download_dir + '\\' + hd_name):
+                print(f'Загрузка видео номер {new_item} <<{video.title}>>')
+                hd.download(output_path=download_dir, filename=str(new_item) + '_' + hd_name)
+            else:
+                print(f"The file number {item} <<{video.title}>> has already been downloaded")
+        else:
+            print('Что-то пошло не так!')
+
 
 def check_playlist(video_urls) -> list:
-    """  Валидация видео из плейлиста """
+    """  Валидация видео из найденных видео или плейлиста """
     new_playlist = []
     yt = ''
-    for url in video_urls:
+    for item, url in enumerate(video_urls):
         try:
+            time.sleep(INTERVALS_SHORT)
             yt = pytube.YouTube(url)
             stream = yt.streams
-            new_playlist.append(yt)
+            if len(stream) > 0:
+                new_playlist.append(yt)
         except Exception as e:
-            print(f'Видео <<{yt.title}>> недоступно, пропускаем.', e)
+            print(f'Видео {item}<<{yt.title}>> недоступно, пропускаем.', e)
             continue
     return new_playlist
 
@@ -182,12 +206,12 @@ def download_playlist(play_list, number, res, lan):
 
     if not os.path.isdir(download_dir):
         os.mkdir(download_dir)
-        print(f'Папка {download_dir} была создана:')
+        print(f'Папка <<{download_dir}>> была создана:')
 
     available_video = check_playlist(pl.video_urls)
 
-    for video in available_video:
-        time.sleep(interval_secs)
+    for item, video in enumerate(available_video):
+        time.sleep(INTERVALS_LONG)
         try:
             video_stream = video.streams
         except Exception as e:
@@ -206,7 +230,7 @@ def download_playlist(play_list, number, res, lan):
                 if not os.path.exists(download_dir + '\\' + stream_video_title):
                     stream_video.download(output_path=download_dir, filename=stream_video_title)
                 else:
-                    print(f"The file <<{stream_video_title}>> has already been downloaded")
+                    print(f"The file <<{video.title}>> has already been downloaded")
                 if not stream_video.is_progressive:
                     stream_audio = video_stream.get_audio_only()
                     if not os.path.exists(download_dir + '\\' + stream_audio_title):
@@ -214,11 +238,11 @@ def download_playlist(play_list, number, res, lan):
                         v_stream = ffmpeg.input(download_dir + '\\' + stream_video_title)
                         a_stream = ffmpeg.input(download_dir + '\\' + stream_audio_title)
                         ffmpeg.output(a_stream, v_stream, download_dir + '\\' + video_title).run()
-                        # cmd = f"ffmpeg -i {v_stream} -i {a_stream} -c:v copy {video_title}"
-                        # os.system(cmd)
+                        '''
+                        cmd = f"ffmpeg -i {v_stream} -i {a_stream} -c:v copy {video_title}"
+                        os.system(cmd)
+                        '''
                     else:
-                        # cmd = f"ffmpeg -i {v_stream} -i {a_stream} -c:v copy {video_title}"
-                        # os.system(cmd)
                         ffmpeg.output(a_stream, v_stream, download_dir + '\\' + video_title).run()
                     if os.path.exists(download_dir + '\\' + stream_video_title):
                         os.remove(download_dir + '\\' + stream_video_title)
@@ -226,24 +250,22 @@ def download_playlist(play_list, number, res, lan):
                         os.remove(download_dir + '\\' + stream_audio_title)
         elif number == "3":
             audio_clip = video_stream.get_audio_only()
-            audio_tittle = re.sub(r'[^-a-zA-Z0-9а-яА-Я., ]', '', video.title)
-            audio_tittle = ' '.join(audio_tittle.split())
-            audio_tittle = audio_tittle.replace(' ', '_') + '.mp3'
-            print(f"Загрузка аудио <<{audio_tittle}>>")
-            audio_clip.download(output_path=download_dir, filename=audio_tittle)
+            audio_tittle = change_name(video.title).replace(' ', '_') + '.mp3'
+            print(f"Загрузка аудио номер {item} <<{video.title}>>")
+            audio_clip.download(output_path=download_dir, filename=str(item)+'_'+audio_tittle)
         elif number == "2" or number == "4" or number == "5":
             d_video = video_stream.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
             video_title = change_name(d_video.title) + '.mp4'
             audio_tittle = video_title.replace('.mp4', '.mp3')
             try:
                 if not os.path.exists(download_dir + '\\' + video_title):
-                    print(f'Загрузка видео <<{video_title[:-4]}>>')
-                    d_video.download(output_path=download_dir, filename=video_title)
+                    print(f'Загрузка видео номер {item} <<{video.title}>>')
+                    d_video.download(output_path=download_dir, filename=str(item)+'_'+video_title)
                 else:
-                    print(f"The file <<{video_title[:-4]}>> has already been downloaded")
+                    print(f"The file number {item} <<{video.title}>> has already been downloaded")
                 if not number == "2":
                     if not os.path.exists(download_dir + '\\' + audio_tittle):
-                        print('Загрузка аудио ', audio_tittle[:-4])
+                        print('Загрузка аудио номер {item}', audio_tittle[:-4])
                         audio_clip = video_stream.get_audio_only()
                         audio_clip.download(output_path=download_dir, filename=audio_tittle)
                     else:
@@ -303,20 +325,28 @@ def download_subtitle(down_dir, video, name_video, lan):
             with open(down_dir + '\\' + srt_title, "w", encoding='utf-8') as f:
                 for stroki in srt_formatted:
                     f.write(stroki)
-        except Exception as e:
-            print(e)
+        except Exception as error:
+            print(error)
     else:
         print(f"У видео <<{video.title}>> нет субтитров")
+
+
+def checked_url(url) -> int:
+    try:
+        status_code = requests.get(url).status_code
+        return status_code
+    except ConnectionError as e:
+        print("Нет такого адреса", e)
 
 
 def input_all() -> tuple:
     resolut = '720'
     langus = ''
-    type_id = input("Input type download: 1-8K,4K,FHD, 2-video(HD), 3-audio, 4-video+audio, 5-all, 6-subtitle\n")
+    type_id = input(INPUT_STR + '\n')
     if type_id == "1":
         resolut = input("Input type of resolution: {4320} {2160} {1440} {1080} {720}\n")
         langus = "en"
-        if resolut not in resolution:
+        if resolut not in RESOLUTION:
             print("No such type of resolution as {}p".format(resolut))
             quit("Go again")
     elif type_id == "5":
@@ -324,30 +354,28 @@ def input_all() -> tuple:
     elif type_id == "2" or type_id == '3' or type_id == '4':
         langus = 'en'
     elif type_id == "6":
-        langus = input("Input lanquages subtitle ('ru', 'en')\n").lower()
-    else:
-        return None
+        langus = input("Input lanquages subtitle ('ru', 'en')\n".lower())
     return type_id, resolut, langus
 
 
 if __name__ == '__main__':
-    play_smth = input("Input playlist, video or channel:\n")
-    # канал без плейлистов
-    #play_smth = 'https://www.youtube.com/playlist?list=PLn6O1S03KRbeNKrpcFSRwQrJZoTxqunYJ'
+    url_video = input("Input playlist, video or channel:\n")
+    # url_video = 'https://www.youtube.com/@magnitny/videos'
     '''Симкин-https://www.youtube.com/playlist?list=PLJPpvRGAVMhAQBPo2R9VDVrZTIYonrp4Y'''
-    typed, resol, lang = input_all()
-    if (typed, resol, lang) is None:
-        print('Something is wrong !')
-        quit('Start Over')
-    start_time = datetime.now()
-    if 'watch?' in play_smth:
-        download_video(play_smth, typed, resol, lang)
-    elif 'playlist' in play_smth:
-        download_playlist(play_smth, typed, resol, lang)
-    elif 'channel' or 'https://www.youtube.com/@' in play_smth:
-        download_channel(play_smth, typed, resol, lang)
-    else:
-        print('Неправильный адрес уoutube-канала!')
-        quit('Start Over')
-    time_end = (datetime.now() - start_time).__str__().split('.')[0]
-    print("All done for", time_end)
+    if checked_url(url_video) == 200:
+        typed, resol, lang = input_all()
+        if (typed, resol, lang) is None:
+            print('Something is wrong ! Start Over!')
+            quit()
+        start_time = datetime.now()
+        if 'watch?' in url_video:
+            download_video(url_video, typed, resol, lang)
+        elif 'playlist' in url_video:
+            download_playlist(url_video, typed, resol, lang)
+        elif 'channel' or 'https://www.youtube.com/@' in url_video:
+            download_channel(url_video, typed, resol, lang)
+        else:
+            print('Неправильный адрес уoutube-канала! Start Over!')
+            quit()
+        time_end = (datetime.now() - start_time).__str__().split('.')[0]
+        print("All done for", time_end)

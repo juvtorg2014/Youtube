@@ -14,7 +14,7 @@ from youtube_transcript_api.formatters import SRTFormatter
 
 
 DOWNLOAD = 'D:\\Downloads'
-RESOLUTION = ["4320", "2160", "1440", "1080", "720", "480", "360"]
+RESOLUTION = ["4320", "2160", "1440", "1080", "720"]
 INTERVALS_SHORT = 1
 INTERVALS_LONG = 3
 INPUT_STR = 'Input type download: 1-video (8K,4K,FHD), 2-video(HD), 3-audio, 4-video+audio, 5-all, 6-subtitle'
@@ -37,8 +37,6 @@ def find_res(vid, res, num):
                 list_res.append(video_streams.filter(type='video', res=RESOLUTION[2] + "p").__len__())
                 list_res.append(video_streams.filter(type='video', res=RESOLUTION[3] + "p").__len__())
                 list_res.append(video_streams.filter(type='video', res=RESOLUTION[4] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=RESOLUTION[5] + "p").__len__())
-                list_res.append(video_streams.filter(type='video', res=RESOLUTION[6] + "p").__len__())
                 for n, lis in enumerate(list_res):
                     if lis > 0 and n > number:
                         stream = video_streams.filter(type='video', res=RESOLUTION[n] + "p")
@@ -212,6 +210,10 @@ def download_playlist(play_list, number, res, lan):
 
     for item, video in enumerate(available_video):
         time.sleep(INTERVALS_LONG)
+        if item < 9:
+            new_item = '0' + str(item + 1)
+        else:
+            new_item = str(item + 1)
         try:
             video_stream = video.streams
         except Exception as e:
@@ -251,23 +253,23 @@ def download_playlist(play_list, number, res, lan):
         elif number == "3":
             audio_clip = video_stream.get_audio_only()
             audio_tittle = change_name(video.title).replace(' ', '_') + '.mp3'
-            print(f"Загрузка аудио номер {item} <<{video.title}>>")
-            audio_clip.download(output_path=download_dir, filename=str(item)+'_'+audio_tittle)
+            print(f"Загрузка аудио номер {new_item} <<{video.title}>>")
+            audio_clip.download(output_path=download_dir, filename=str(new_item)+'_'+audio_tittle)
         elif number == "2" or number == "4" or number == "5":
             d_video = video_stream.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
             video_title = change_name(d_video.title) + '.mp4'
             audio_tittle = video_title.replace('.mp4', '.mp3')
             try:
-                if not os.path.exists(download_dir + '\\' + video_title):
-                    print(f'Загрузка видео номер {item} <<{video.title}>>')
-                    d_video.download(output_path=download_dir, filename=str(item)+'_'+video_title)
+                if not os.path.exists(download_dir + '\\' +str(new_item)+'_'+video_title):
+                    print(f'Загрузка видео номер {new_item} <<{video.title}>>')
+                    d_video.download(output_path=download_dir, filename=str(new_item)+'_'+video_title)
                 else:
-                    print(f"The file number {item} <<{video.title}>> has already been downloaded")
+                    print(f"The file number {new_item} <<{video.title}>> has already been downloaded")
                 if not number == "2":
-                    if not os.path.exists(download_dir + '\\' + audio_tittle):
-                        print('Загрузка аудио номер {item}', audio_tittle[:-4])
+                    if not os.path.exists(download_dir + '\\' +str(new_item)+'_'+audio_tittle):
+                        print(f'Загрузка аудио номер {new_item}', audio_tittle[:-4])
                         audio_clip = video_stream.get_audio_only()
-                        audio_clip.download(output_path=download_dir, filename=audio_tittle)
+                        audio_clip.download(output_path=download_dir, filename=str(new_item)+'_'+audio_tittle)
                     else:
                         print(f"The file <<{audio_tittle[:-4]}>> has already been downloaded")
                 if number == "5":
@@ -277,7 +279,7 @@ def download_playlist(play_list, number, res, lan):
                 continue
         elif number == "6":
             vidos = video_stream.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-            vid_title = change_name(vidos.title).replace(' ', '_')
+            vid_title = new_item + '_' + change_name(vidos.title).replace(' ', '_')
             download_subtitle(download_dir, video, vid_title, lan)
 
 
@@ -288,7 +290,10 @@ def download_subtitle(down_dir, video, name_video, lan):
     if video.captions:
         if video.caption_tracks[0].code == lan or video.caption_tracks[0].code == 'a.' + lan:
             srt_lang = Trans.get_transcript(video.video_id, languages=[lan])
-            srt_title = name_video + '_' + lan + '.srt'
+            if lan == 'en' or 'a.en':
+                srt_title = name_video + '.srt'
+            else:
+                srt_title = name_video + '_' + lan + '.srt'
         else:
             trans_list = Trans.list_transcripts(video.video_id)
             if not trans_list._manually_created_transcripts.__len__() == 0:
@@ -299,7 +304,7 @@ def download_subtitle(down_dir, video, name_video, lan):
                 trans_gen = str(trans_list._generated_transcripts).split("'")[1]
                 if lan == trans_gen and trans_gen == 'en':
                     srt_lang = Trans.get_transcript(video.video_id, languages=['en'])
-                    srt_title = name_video + '_en.srt'
+                    srt_title = name_video + '.srt'
                 elif lan == trans_gen and trans_gen == 'ru':
                     srt_lang = Trans.get_transcript(video.video_id, languages=['ru'])
                     srt_title = name_video + '_ru.srt'
@@ -308,7 +313,10 @@ def download_subtitle(down_dir, video, name_video, lan):
                     if lang in tr_lang._translation_languages_dict:
                         srt_lang = trans_list.find_transcript([tr_lang.language_code]).translate(lang).fetch()
                         srt_name = str(trans_list.find_transcript([tr_lang.language_code]).translate(lang)).split()[1]
-                        srt_title = name_video + '_' + lang + '.srt'
+                        if lang == 'en' or 'a.en':
+                            srt_title = name_video + '.srt'
+                        else:
+                            srt_title = name_video + '_' + lang + '.srt'
                     else:
                         print("Нет субтитров такого языка", lan)
                         return
@@ -344,7 +352,7 @@ def input_all() -> tuple:
     langus = ''
     type_id = input(INPUT_STR + '\n')
     if type_id == "1":
-        resolut = input("Input type of resolution: {4320} {2160} {1440} {1080} {720}\n")
+        resolut = input("Input type of resolution: {4320}-{2160}-{1440}-{1080}-{720}\n")
         langus = "en"
         if resolut not in RESOLUTION:
             print("No such type of resolution as {}p".format(resolut))
@@ -377,5 +385,5 @@ if __name__ == '__main__':
         else:
             print('Неправильный адрес уoutube-канала! Start Over!')
             quit()
-        time_end = (datetime.now() - start_time).__str__().split('.')[0]
+        time_end = str(datetime.now() - start_time).split('.')[0]
         print("All done for", time_end)

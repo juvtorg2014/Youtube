@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import tkinter.filedialog as fd
-import yt_down as yd
+import ytube as yd
 
 app = tk.Tk()
 app.title("Загрузка видео, аудио и субтитров с YouTube")

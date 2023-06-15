@@ -13,7 +13,7 @@ from youtube_transcript_api import YouTubeTranscriptApi as Trans
 from youtube_transcript_api.formatters import SRTFormatter
 
 DOWNLOAD = 'D:\\Downloads'
-RESOLUTION = ["4320", "2160", "1440", "1080", "720"]
+RESOLUTION = ["4320", "2160", "1440", "1080"]
 INTERVALS_SHORT = 1
 INTERVALS_LONG = 3
 INPUT_STR = 'Input type download: 1-video (8K,4K,FHD), 2-video(HD), 3-audio, 4-video+audio, 5-all, 6-subtitle'
@@ -35,16 +35,15 @@ def find_res(vid, res, num):
                 list_res.append(len(video_streams.filter(type='video', res=RESOLUTION[1] + "p")))
                 list_res.append(len(video_streams.filter(type='video', res=RESOLUTION[2] + "p")))
                 list_res.append(len(video_streams.filter(type='video', res=RESOLUTION[3] + "p")))
-                list_res.append(len(video_streams.filter(type='video', res=RESOLUTION[4] + "p")))
                 for n, lis in enumerate(list_res):
                     if lis > 0 and n > number:
                         stream = video_streams.filter(type='video', res=RESOLUTION[n] + "p")
                         if len(stream) > 0:
                             return stream.first()
                     else:
-                        return video_streams.filter(file_extension='mp4').order_by('resolution').desc().first()
+                        return video_streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
             else:
-                return video_streams.filter(file_extension='mp4').order_by('resolution').desc().first()
+                return video_streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
         except Exception as e:
             print(f'Видео {video_streams.title}', e)
             return None
@@ -392,7 +391,7 @@ def input_all() -> tuple:
     langus = 'en'
     type_id = input(INPUT_STR + '\n')
     if type_id == "1":
-        resolut = input("Input type of resolution: {4320}-{2160}-{1440}-{1080}-{720}\n")
+        resolut = input("Input type of resolution: {4320}-{2160}-{1440}-{1080}\n")
         langus = "en"
         if resolut not in RESOLUTION:
             if int(resolut) > 720 and int(resolut) < 1080:
@@ -404,7 +403,7 @@ def input_all() -> tuple:
             elif int(resolut) > 2160 and int(resolut) < 4320:
                 resolut = '4320'
             else:
-                resolut = '720'
+                resolut = '1080'
     elif type_id == "5" or type_id == "6":
         langus = choose_languages()
     elif type_id == "2" or type_id == '3' or type_id == '4':
@@ -416,8 +415,8 @@ def input_all() -> tuple:
 
 
 if __name__ == '__main__':
-    # url_video = input("Input playlist, video or channel:\n")
-    url_video = 'https://www.youtube.com/@mindmapsgo/videos'
+    url_video = input("Input playlist, video or channel:\n")
+    # url_video = 'https://www.youtube.com/@mindmapsgo/videos'
     '''Симкин-https://www.youtube.com/playlist?list=PLJPpvRGAVMhAQBPo2R9VDVrZTIYonrp4Y'''
     if checked_url(url_video) == 200:
         typed, resol, lang = input_all()
